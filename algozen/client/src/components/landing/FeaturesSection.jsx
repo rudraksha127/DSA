@@ -1,5 +1,5 @@
 import { useInView } from 'react-intersection-observer'
-import { Brain, Sword, Trophy, Bot, Users, BarChart3 } from 'lucide-react'
+import { Brain, Sword, Trophy, Bot, Users, BarChart3, Flame, Lock } from 'lucide-react'
 
 const features = [
   {
@@ -44,6 +44,20 @@ const features = [
     color: 'text-orange-400',
     bg: 'bg-orange-400/10',
   },
+  {
+    icon: Flame,
+    title: 'Daily Streaks',
+    desc: 'Keep your momentum alive with daily challenges. Maintain streaks to earn bonus XP multipliers.',
+    color: 'text-red-400',
+    bg: 'bg-red-400/10',
+  },
+  {
+    icon: Lock,
+    title: 'Interview Prep Mode',
+    desc: 'Timed mock interviews with curated problem sets from top tech companies. Get hired faster.',
+    color: 'text-violet-400',
+    bg: 'bg-violet-400/10',
+  },
 ]
 
 export default function FeaturesSection() {
@@ -70,8 +84,8 @@ export default function FeaturesSection() {
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Features Grid — 2 cols on sm, 4 cols on lg */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map(({ icon, title, desc, color, bg }, i) => {
             const Icon = icon
             return (

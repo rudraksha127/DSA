@@ -43,6 +43,14 @@ const problems = [
     acceptance: '66%',
     solved: false,
   },
+  {
+    id: 6,
+    title: 'Find Median from Data Stream',
+    difficulty: 'Hard',
+    tags: ['Heap', 'Design'],
+    acceptance: '52%',
+    solved: false,
+  },
 ]
 
 const difficultyColor = {
