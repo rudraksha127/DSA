@@ -1,13 +1,13 @@
-import Navbar from '@/components/shared/Navbar'
-import HeroSection from '@/components/landing/HeroSection'
-import StatsSection from '@/components/landing/StatsSection'
-import TracksSection from '@/components/landing/TracksSection'
-import FeaturesSection from '@/components/landing/FeaturesSection'
-import HowItWorks from '@/components/landing/HowItWorks'
-import ProblemPreview from '@/components/landing/ProblemPreview'
-import CreatureSection from '@/components/landing/CreatureSection'
-import CTASection from '@/components/landing/CTASection'
-import Footer from '@/components/landing/Footer'
+import Navbar from '../components/landing/Navbar';
+import HeroSection from '../components/landing/HeroSection';
+import StatsSection from '../components/landing/StatsSection';
+import TracksSection from '../components/landing/TracksSection';
+import FeaturesSection from '../components/landing/FeaturesSection';
+import HowItWorks from '../components/landing/HowItWorks';
+import CreatureSection from '../components/landing/CreatureSection';
+import ProblemPreview from '../components/landing/ProblemPreview';
+import CTASection from '../components/landing/CTASection';
+import Footer from '../components/landing/Footer';
 
 export default function LandingPage() {
   return (
@@ -18,10 +18,10 @@ export default function LandingPage() {
       <TracksSection />
       <FeaturesSection />
       <HowItWorks />
-      <ProblemPreview />
       <CreatureSection />
+      <ProblemPreview />
       <CTASection />
       <Footer />
     </div>
-  )
+  );
 }

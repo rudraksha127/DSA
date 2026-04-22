@@ -2,35 +2,14 @@ import { SignUp } from '@clerk/clerk-react'
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <SignUp
-          path="/sign-up"
-          routing="path"
-          signInUrl="/sign-in"
-          afterSignUpUrl="/dashboard"
-          appearance={{
-            variables: {
-              colorPrimary: '#6366f1',
-              colorBackground: '#111118',
-              colorText: '#e2e8f0',
-              colorInputBackground: '#1a1a27',
-              colorInputText: '#e2e8f0',
-              borderRadius: '0.75rem',
-            },
-            elements: {
-              card: 'shadow-2xl shadow-black/40 border border-dark-600',
-              headerTitle: 'text-white',
-              headerSubtitle: 'text-slate-400',
-              socialButtonsBlockButton:
-                'bg-dark-700 border-dark-500 text-slate-200 hover:bg-dark-600',
-              formButtonPrimary:
-                'bg-primary-600 hover:bg-primary-500 transition-colors',
-              footerActionLink: 'text-primary-400 hover:text-primary-300',
-            },
-          }}
-        />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-dark-900 px-4">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
+          AlgoZen
+        </h1>
+        <p className="mt-1 text-slate-400 text-sm">Join the arena. Start your journey.</p>
       </div>
+      <SignUp routing="path" path="/sign-up" />
     </div>
   )
 }

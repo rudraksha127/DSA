@@ -1,156 +1,311 @@
-import { Link } from 'react-router-dom'
-import { useInView } from 'react-intersection-observer'
-import { ArrowRight, Play, Code2, Zap } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Play, Trophy, CheckCircle } from 'lucide-react';
 
-const codeSnippet = `function twoSum(nums, target) {
-  const map = new Map();
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
-    }
-    map.set(nums[i], i);
-  }
-}`
+const TYPEWRITER_WORDS = ['Legendary', 'Interview-Ready', 'Contest-Winner', 'Unstoppable'];
+
+const floatingOrbs = [
+  { size: 300, top: '10%', left: '5%', color: 'primary-500' },
+  { size: 200, top: '60%', left: '80%', color: 'accent-500' },
+  { size: 150, top: '80%', left: '20%', color: 'primary-600' },
+  { size: 100, top: '20%', left: '70%', color: 'accent-600' },
+];
+
+const fakeCode = [
+  { type: 'keyword', text: 'function ' },
+  { type: 'fn', text: 'twoSum' },
+  { type: 'plain', text: '(nums, target) {' },
+  { type: 'newline' },
+  { type: 'indent', text: '  ' },
+  { type: 'keyword', text: 'const ' },
+  { type: 'var', text: 'map ' },
+  { type: 'plain', text: '= ' },
+  { type: 'keyword', text: 'new ' },
+  { type: 'fn', text: 'Map' },
+  { type: 'plain', text: '();' },
+  { type: 'newline' },
+  { type: 'indent', text: '  ' },
+  { type: 'keyword', text: 'for ' },
+  { type: 'plain', text: '(' },
+  { type: 'keyword', text: 'let ' },
+  { type: 'var', text: 'i ' },
+  { type: 'plain', text: '= ' },
+  { type: 'number', text: '0' },
+  { type: 'plain', text: '; ' },
+  { type: 'var', text: 'i ' },
+  { type: 'plain', text: '< ' },
+  { type: 'var', text: 'nums' },
+  { type: 'plain', text: '.length; ' },
+  { type: 'var', text: 'i' },
+  { type: 'plain', text: '++) {' },
+  { type: 'newline' },
+  { type: 'indent', text: '    ' },
+  { type: 'keyword', text: 'const ' },
+  { type: 'var', text: 'comp ' },
+  { type: 'plain', text: '= ' },
+  { type: 'var', text: 'target ' },
+  { type: 'plain', text: '- ' },
+  { type: 'var', text: 'nums' },
+  { type: 'plain', text: '[' },
+  { type: 'var', text: 'i' },
+  { type: 'plain', text: '];' },
+  { type: 'newline' },
+  { type: 'indent', text: '    ' },
+  { type: 'keyword', text: 'if ' },
+  { type: 'plain', text: '(' },
+  { type: 'var', text: 'map' },
+  { type: 'plain', text: '.has(' },
+  { type: 'var', text: 'comp' },
+  { type: 'plain', text: '))' },
+  { type: 'newline' },
+  { type: 'indent', text: '      ' },
+  { type: 'keyword', text: 'return ' },
+  { type: 'plain', text: '[' },
+  { type: 'var', text: 'map' },
+  { type: 'plain', text: '.get(' },
+  { type: 'var', text: 'comp' },
+  { type: 'plain', text: '), ' },
+  { type: 'var', text: 'i' },
+  { type: 'plain', text: '];' },
+  { type: 'newline' },
+  { type: 'indent', text: '    ' },
+  { type: 'var', text: 'map' },
+  { type: 'plain', text: '.set(' },
+  { type: 'var', text: 'nums' },
+  { type: 'plain', text: '[' },
+  { type: 'var', text: 'i' },
+  { type: 'plain', text: '], ' },
+  { type: 'var', text: 'i' },
+  { type: 'plain', text: ');' },
+  { type: 'newline' },
+  { type: 'plain', text: '  }' },
+  { type: 'newline' },
+  { type: 'plain', text: '}' },
+];
+
+function CodeToken({ type, text }) {
+  const colorMap = {
+    keyword: 'text-purple-400',
+    fn: 'text-blue-400',
+    var: 'text-sky-300',
+    string: 'text-green-400',
+    number: 'text-orange-400',
+    plain: 'text-slate-300',
+    indent: 'text-transparent select-none',
+  };
+  if (type === 'newline') return <br />;
+  return <span className={colorMap[type] || 'text-slate-300'}>{text}</span>;
+}
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.15 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+};
 
 export default function HeroSection() {
-  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
+  const [wordIndex, setWordIndex] = useState(0);
+  const [displayed, setDisplayed] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [cursorVisible, setCursorVisible] = useState(true);
+
+  // Cursor blink
+  useEffect(() => {
+    const id = setInterval(() => setCursorVisible((v) => !v), 530);
+    return () => clearInterval(id);
+  }, []);
+
+  // Typewriter effect
+  useEffect(() => {
+    const word = TYPEWRITER_WORDS[wordIndex];
+    let timeout;
+
+    if (!deleting && displayed.length < word.length) {
+      timeout = setTimeout(() => setDisplayed(word.slice(0, displayed.length + 1)), 90);
+    } else if (!deleting && displayed.length === word.length) {
+      timeout = setTimeout(() => setDeleting(true), 1800);
+    } else if (deleting && displayed.length > 0) {
+      timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 50);
+    } else if (deleting && displayed.length === 0) {
+      setDeleting(false);
+      setWordIndex((i) => (i + 1) % TYPEWRITER_WORDS.length);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [displayed, deleting, wordIndex]);
 
   return (
     <section
-      ref={ref}
-      className="relative min-h-screen flex items-center pt-16 overflow-hidden"
+      id="hero"
+      className="relative min-h-screen flex items-center overflow-hidden bg-dark-900 pt-16"
     >
-      {/* Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-600/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent-600/10 rounded-full blur-3xl" />
+      {/* Floating orbs background */}
+      {floatingOrbs.map((orb, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full opacity-10 blur-3xl pointer-events-none animate-float"
+          style={{
+            width: orb.size,
+            height: orb.size,
+            top: orb.top,
+            left: orb.left,
+            background: orb.color.includes('accent')
+              ? '#8b5cf6'
+              : '#6366f1',
+            animationDelay: `${i * 0.7}s`,
+          }}
+        />
+      ))}
 
-      {/* Grid Pattern */}
+      {/* Grid pattern overlay */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-5 pointer-events-none"
         style={{
           backgroundImage:
-            'linear-gradient(#6366f1 1px, transparent 1px), linear-gradient(90deg, #6366f1 1px, transparent 1px)',
-          backgroundSize: '50px 50px',
+            'linear-gradient(rgba(99,102,241,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.5) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
-          <div
-            className={`transition-all duration-700 ${
-              inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'
-            }`}
+          {/* Left: Text content */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="flex flex-col items-start"
           >
-            <div className="inline-flex items-center gap-2 bg-primary-500/10 border border-primary-500/20 rounded-full px-4 py-1.5 mb-6">
-              <Zap className="w-4 h-4 text-primary-400" />
-              <span className="text-primary-400 text-sm font-medium">
-                Learn DSA Like a Game
+            {/* Badge */}
+            <motion.div variants={itemVariants}>
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium bg-primary-500/10 border border-primary-500/30 text-primary-400 mb-6">
+                <Trophy className="w-4 h-4" />
+                #1 Gamified DSA Platform
               </span>
-            </div>
+            </motion.div>
 
-            <h1 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
-              Master{' '}
+            {/* Headline */}
+            <motion.h1
+              variants={itemVariants}
+              className="text-5xl lg:text-7xl font-extrabold leading-tight text-white mb-2"
+            >
+              Level Up Your DSA.
+            </motion.h1>
+            <motion.h1
+              variants={itemVariants}
+              className="text-5xl lg:text-7xl font-extrabold leading-tight mb-6"
+            >
+              <span className="text-white">Become </span>
               <span className="bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
-                Algorithms
-              </span>{' '}
-              <br />
-              Level Up Your{' '}
-              <span className="bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
-                Career
+                {displayed}
               </span>
-            </h1>
+              <span
+                className="inline-block w-0.5 h-12 lg:h-16 bg-primary-400 ml-1 align-middle"
+                style={{ opacity: cursorVisible ? 1 : 0, transition: 'opacity 0.1s' }}
+              />
+            </motion.h1>
 
-            <p className="text-slate-400 text-lg mb-8 max-w-lg leading-relaxed">
-              AlgoZen turns competitive programming into an epic adventure. Earn
-              XP, unlock creatures, and climb leaderboards as you conquer data
-              structures and algorithms.
-            </p>
+            {/* Subtitle */}
+            <motion.p
+              variants={itemVariants}
+              className="text-lg text-slate-400 mb-8 max-w-xl leading-relaxed"
+            >
+              Join 5,000+ warriors mastering algorithms with AI guidance, real-time battles,
+              and creature companions.
+            </motion.p>
 
-            <div className="flex flex-wrap gap-4">
+            {/* CTAs */}
+            <motion.div variants={itemVariants} className="flex flex-wrap gap-4 mb-8">
               <Link
                 to="/sign-up"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary-500/30 active:scale-95"
+                className="btn-primary py-3 px-8 text-base flex items-center gap-2"
               >
-                Start for Free
-                <ArrowRight className="w-4 h-4" />
+                Start Your Journey →
               </Link>
-              <button className="inline-flex items-center gap-2 bg-dark-700 hover:bg-dark-600 text-slate-200 font-semibold py-3 px-6 rounded-xl border border-dark-500 hover:border-primary-500/30 transition-all duration-200">
-                <Play className="w-4 h-4 text-primary-400" />
+              <button className="btn-secondary py-3 px-8 text-base flex items-center gap-2">
+                <Play className="w-4 h-4 fill-current" />
                 Watch Demo
               </button>
-            </div>
+            </motion.div>
 
-            <div className="mt-8 flex items-center gap-6 text-sm text-slate-500">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-success" />
-                Free to start
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-success" />
-                No credit card
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-success" />
-                500+ problems
-              </div>
-            </div>
-          </div>
+            {/* Stats */}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-wrap items-center gap-2 text-sm text-slate-400"
+            >
+              {['10K+ Problems Solved', '5K+ Warriors', '98% Interview Success'].map(
+                (stat, i) => (
+                  <span key={stat} className="flex items-center gap-2">
+                    {i > 0 && <span className="w-1 h-1 rounded-full bg-slate-600" />}
+                    <CheckCircle className="w-4 h-4 text-success" />
+                    <span className="text-slate-300 font-medium">{stat}</span>
+                  </span>
+                )
+              )}
+            </motion.div>
+          </motion.div>
 
-          {/* Right Content — Code Preview */}
-          <div
-            className={`transition-all duration-700 delay-200 ${
-              inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'
-            }`}
+          {/* Right: Floating code window */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="hidden lg:flex flex-col gap-4"
           >
-            <div className="relative">
-              {/* Glow Effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary-600/30 to-accent-600/30 rounded-2xl blur-xl" />
-
-              {/* Code Card */}
-              <div className="relative bg-dark-800 border border-dark-600 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Window Chrome */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-dark-700 border-b border-dark-600">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  <div className="flex items-center gap-2 ml-3">
-                    <Code2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-slate-400 text-xs font-mono">
-                      twoSum.js
-                    </span>
-                  </div>
-                </div>
-
-                {/* Code */}
-                <pre className="p-6 text-sm font-mono text-slate-300 overflow-x-auto leading-relaxed">
-                  <code>{codeSnippet}</code>
-                </pre>
-
-                {/* Result Bar */}
-                <div className="px-6 py-3 bg-dark-700/50 border-t border-dark-600 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-mono">
-                    Runtime: 68 ms · Memory: 44.1 MB
-                  </span>
-                  <span className="text-xs font-semibold text-success bg-success/10 px-2 py-0.5 rounded">
-                    ✓ Accepted
-                  </span>
-                </div>
+            <motion.div
+              animate={{ y: [0, -15, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              className="rounded-xl overflow-hidden border border-dark-600 shadow-2xl shadow-primary-500/10"
+            >
+              {/* Window chrome */}
+              <div className="flex items-center gap-2 px-4 py-3 bg-dark-700 border-b border-dark-600">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="ml-3 text-xs text-slate-500 font-mono">twoSum.js</span>
               </div>
-
-              {/* XP Badge */}
-              <div className="absolute -top-4 -right-4 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl px-3 py-2 shadow-lg animate-float">
-                <div className="text-center">
-                  <p className="text-white text-xs font-bold">+150 XP</p>
-                  <p className="text-primary-100 text-[10px]">Level Up!</p>
-                </div>
+              {/* Code */}
+              <div className="bg-dark-800 px-6 py-5 font-mono text-sm leading-relaxed overflow-x-auto">
+                {fakeCode.map((token, i) => (
+                  <CodeToken key={i} {...token} />
+                ))}
               </div>
-            </div>
-          </div>
+              {/* Submission result */}
+              <div className="bg-dark-700/80 border-t border-dark-600 px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-success text-sm font-semibold">✓ Accepted</span>
+                  <span className="text-slate-500 text-xs ml-2">Runtime: 4ms • Beats 97%</span>
+                </div>
+                <span className="text-sm font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
+                  +150 XP ⚡
+                </span>
+              </div>
+            </motion.div>
+
+            {/* XP notification card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2, duration: 0.5 }}
+              className="flex items-center gap-4 bg-dark-800/80 backdrop-blur-sm border border-primary-500/20 rounded-xl px-5 py-4 shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-lg flex-shrink-0">
+                ⚡
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">Level Up! You reached Level 5</p>
+                <p className="text-slate-400 text-xs mt-0.5">Your creature evolved into Baby Coder 🐣</p>
+              </div>
+              <div className="ml-auto text-2xl">🎉</div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>
-  )
+  );
 }

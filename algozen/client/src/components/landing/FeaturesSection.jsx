@@ -1,111 +1,122 @@
-import { useInView } from 'react-intersection-observer'
-import { Brain, Sword, Trophy, Bot, Users, BarChart3, Flame, Lock } from 'lucide-react'
+import { motion } from 'framer-motion';
+import { Code2, Brain, Swords, Flame, Sparkles, GraduationCap, Trophy, Star } from 'lucide-react';
 
 const features = [
   {
-    icon: Sword,
-    title: 'Gamified XP System',
-    desc: 'Earn experience points for every solved problem. Level up your profile and unlock exclusive badges.',
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-400/10',
-  },
-  {
-    icon: Bot,
-    title: 'AI Mentor',
-    desc: 'Stuck? Get instant hints and step-by-step explanations powered by Llama 3.3 70B — without spoiling the solution.',
-    color: 'text-primary-400',
-    bg: 'bg-primary-400/10',
-  },
-  {
-    icon: Trophy,
-    title: 'Live Contests',
-    desc: 'Compete in real-time contests against thousands of developers. Weekly rounds with exciting prizes.',
-    color: 'text-accent-400',
-    bg: 'bg-accent-400/10',
+    icon: Code2,
+    title: 'Monaco Editor',
+    description: 'Industry-grade code editor with IntelliSense, syntax highlighting & autocomplete.',
+    gradient: 'from-blue-500 to-cyan-500',
   },
   {
     icon: Brain,
-    title: 'Smart Recommendations',
-    desc: 'Adaptive problem recommendations based on your strengths and weak spots.',
-    color: 'text-green-400',
-    bg: 'bg-green-400/10',
+    title: 'AlgoGuru AI',
+    description: 'Get hints, code review & step-by-step explanations from your personal AI mentor.',
+    gradient: 'from-purple-500 to-pink-500',
   },
   {
-    icon: Users,
-    title: 'Community & Guilds',
-    desc: 'Form guilds with friends, solve problems together and climb the guild leaderboard.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10',
-  },
-  {
-    icon: BarChart3,
-    title: 'Progress Analytics',
-    desc: 'Detailed visualisations of your submission history, topic distribution, and time complexity growth.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
+    icon: Swords,
+    title: 'Battle Mode',
+    description: '1v1 real-time coding battles against friends or random opponents. First AC wins.',
+    gradient: 'from-red-500 to-orange-500',
   },
   {
     icon: Flame,
     title: 'Daily Streaks',
-    desc: 'Keep your momentum alive with daily challenges. Maintain streaks to earn bonus XP multipliers.',
-    color: 'text-red-400',
-    bg: 'bg-red-400/10',
+    description: 'Build unbreakable consistency with daily challenges, streak rewards & reminders.',
+    gradient: 'from-orange-500 to-yellow-500',
   },
   {
-    icon: Lock,
-    title: 'Interview Prep Mode',
-    desc: 'Timed mock interviews with curated problem sets from top tech companies. Get hired faster.',
-    color: 'text-violet-400',
-    bg: 'bg-violet-400/10',
+    icon: Sparkles,
+    title: 'Creature Evolution',
+    description: 'Your algo companion evolves with every level. Keep your streak or it sleeps.',
+    gradient: 'from-green-500 to-emerald-500',
   },
-]
+  {
+    icon: GraduationCap,
+    title: 'Professor Dashboard',
+    description: 'Powerful classroom tools for educators to assign, track, and grade students.',
+    gradient: 'from-teal-500 to-cyan-500',
+  },
+  {
+    icon: Trophy,
+    title: 'Weekly Contests',
+    description: 'Compete globally in timed competitions every Sunday. Climb the leaderboard.',
+    gradient: 'from-yellow-500 to-amber-500',
+  },
+  {
+    icon: Star,
+    title: 'XP System',
+    description: 'Earn XP for every submission, streak, and battle won. Level up your rank.',
+    gradient: 'from-primary-500 to-accent-500',
+  },
+];
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+};
 
 export default function FeaturesSection() {
-  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
-
   return (
-    <section id="features" ref={ref} className="py-24 bg-dark-800/30">
+    <section id="features" className="bg-dark-800/50 py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div
-          className={`text-center mb-16 transition-all duration-600 ${
-            inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-14"
         >
-          <h2 className="text-4xl font-extrabold text-white mb-4">
-            Everything You Need to{' '}
+          <span className="inline-block px-4 py-1.5 rounded-full text-sm font-medium bg-primary-500/10 border border-primary-500/30 text-primary-400 mb-4">
+            Features
+          </span>
+          <h2 className="text-4xl lg:text-5xl font-extrabold text-white mb-4">
+            Why{' '}
             <span className="bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
-              Go Further
+              AlgoZen?
             </span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
-            AlgoZen combines the best of interactive coding, gamification, and AI
-            mentorship into one powerful platform.
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+            Everything you need to master DSA, crush interviews, and become a legendary coder — all
+            in one addictive platform.
           </p>
-        </div>
+        </motion.div>
 
-        {/* Features Grid — 2 cols on sm, 4 cols on lg */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map(({ icon, title, desc, color, bg }, i) => {
-            const Icon = icon
+        {/* Features grid */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-60px' }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+        >
+          {features.map((feat) => {
+            const Icon = feat.icon;
             return (
-            <div
-              key={title}
-              className={`card group hover:scale-[1.02] transition-all duration-500 ${
-                inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
-              style={{ transitionDelay: `${i * 80}ms` }}
-            >
-              <div className={`inline-flex items-center justify-center w-11 h-11 rounded-xl ${bg} mb-4`}>
-                <Icon className={`w-5 h-5 ${color}`} />
-              </div>
-              <h3 className="text-white font-semibold text-base mb-2">{title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-            </div>
-            )
+              <motion.div
+                key={feat.title}
+                variants={cardVariants}
+                className="card group hover:scale-[1.02] hover:shadow-xl hover:shadow-primary-500/5 cursor-default"
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl bg-gradient-to-br ${feat.gradient} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-white font-bold text-base mb-2">{feat.title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{feat.description}</p>
+              </motion.div>
+            );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
-  )
+  );
 }
