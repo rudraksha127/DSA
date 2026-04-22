@@ -62,7 +62,8 @@ function AnimatedCounter({ target, suffix, display, inView }) {
   }, [inView, target]);
 
   if (target >= 1000) {
-    return <span>{count >= 1000 ? (count / 1000).toFixed(0) + ',000' + suffix : count + suffix}</span>;
+    const formatted = count.toLocaleString('en-IN');
+    return <span>{formatted}{suffix}</span>;
   }
   return <span>{count}{suffix}</span>;
 }
