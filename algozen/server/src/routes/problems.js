@@ -116,7 +116,37 @@ router.put('/:id', requireAuth, adminOnly, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const safeId = new mongoose.Types.ObjectId(req.params.id)
-    const problem = await Problem.findByIdAndUpdate(safeId, req.body, {
+
+    // Explicitly pick allowed fields to prevent operator injection
+    const {
+      title, slug, description, track, topic, difficulty,
+      levelRequired, xpReward, constraints, examples, testCases,
+      hints, editorialLink, source, sourceId, isActive, isPOTD,
+      supportedLanguages, starterCode,
+    } = req.body
+    const updates = {
+      ...(title !== undefined && { title }),
+      ...(slug !== undefined && { slug }),
+      ...(description !== undefined && { description }),
+      ...(track !== undefined && { track }),
+      ...(topic !== undefined && { topic }),
+      ...(difficulty !== undefined && { difficulty }),
+      ...(levelRequired !== undefined && { levelRequired }),
+      ...(xpReward !== undefined && { xpReward }),
+      ...(constraints !== undefined && { constraints }),
+      ...(examples !== undefined && { examples }),
+      ...(testCases !== undefined && { testCases }),
+      ...(hints !== undefined && { hints }),
+      ...(editorialLink !== undefined && { editorialLink }),
+      ...(source !== undefined && { source }),
+      ...(sourceId !== undefined && { sourceId }),
+      ...(isActive !== undefined && { isActive }),
+      ...(isPOTD !== undefined && { isPOTD }),
+      ...(supportedLanguages !== undefined && { supportedLanguages }),
+      ...(starterCode !== undefined && { starterCode }),
+    }
+
+    const problem = await Problem.findByIdAndUpdate(safeId, updates, {
       new: true,
       runValidators: true,
     })
