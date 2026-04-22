@@ -33,7 +33,20 @@ router.post('/problems', async (req, res) => {
 
 router.patch('/problems/:id', async (req, res) => {
   try {
-    const problem = await Problem.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    // Whitelist allowed fields to prevent NoSQL operator injection
+    const allowed = [
+      'title', 'slug', 'description', 'track', 'topic', 'difficulty',
+      'levelRequired', 'xpReward', 'constraints', 'examples', 'testCases',
+      'hints', 'editorialLink', 'source', 'isActive', 'isPOTD',
+      'supportedLanguages', 'starterCode',
+    ]
+    const update = {}
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        update[key] = req.body[key]
+      }
+    }
+    const problem = await Problem.findByIdAndUpdate(req.params.id, update, { new: true })
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
     res.json({ problem })
   } catch (err) {

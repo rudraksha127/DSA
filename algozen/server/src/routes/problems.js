@@ -7,10 +7,20 @@ router.get('/', async (req, res) => {
   try {
     const { track, difficulty, topic, search, page = 1, limit = 20 } = req.query
     const query = { isActive: true }
-    if (track) query.track = track
-    if (difficulty) query.difficulty = difficulty
-    if (topic) query.topic = topic
-    if (search) query.title = { $regex: search, $options: 'i' }
+
+    const VALID_TRACKS = ['DSA', 'RealWorld']
+    const VALID_DIFFICULTIES = ['Rookie', 'Warrior', 'Legend']
+    const VALID_TOPICS = [
+      'Arrays', 'Strings', 'LinkedList', 'Stack', 'Queue', 'Trees', 'BST',
+      'Graphs', 'DynamicProgramming', 'Recursion', 'Sorting', 'Searching',
+      'Hashing', 'Greedy', 'Backtracking', 'Trie', 'Heap',
+      'SystemDesign', 'DatabaseOptimization', 'APIDesign', 'Scalability', 'Architecture',
+    ]
+
+    if (track && typeof track === 'string' && VALID_TRACKS.includes(track)) query.track = track
+    if (difficulty && typeof difficulty === 'string' && VALID_DIFFICULTIES.includes(difficulty)) query.difficulty = difficulty
+    if (topic && typeof topic === 'string' && VALID_TOPICS.includes(topic)) query.topic = topic
+    if (search && typeof search === 'string') query.title = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }
 
     const total = await Problem.countDocuments(query)
     const problems = await Problem.find(query)
