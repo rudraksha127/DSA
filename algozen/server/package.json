@@ -6,7 +6,8 @@
   "scripts": {
     "start":   "node src/index.js",
     "dev":     "nodemon src/index.js",
-    "test":    "echo \"Tests coming soon\""
+    "test":    "echo \"Tests coming soon\"",
+    "seed":    "node src/scripts/seed.js"
   },
   "keywords": [],
   "author": "",
