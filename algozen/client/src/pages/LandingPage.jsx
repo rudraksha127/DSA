@@ -1,12 +1,27 @@
+import Navbar from '../components/landing/Navbar';
+import HeroSection from '../components/landing/HeroSection';
+import StatsSection from '../components/landing/StatsSection';
+import TracksSection from '../components/landing/TracksSection';
+import FeaturesSection from '../components/landing/FeaturesSection';
+import HowItWorks from '../components/landing/HowItWorks';
+import CreatureSection from '../components/landing/CreatureSection';
+import ProblemPreview from '../components/landing/ProblemPreview';
+import CTASection from '../components/landing/CTASection';
+import Footer from '../components/landing/Footer';
+
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-dark-900">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
-          AlgoZen
-        </h1>
-        <p className="mt-3 text-slate-400">Master DSA. Level up. Compete.</p>
-      </div>
+    <div className="min-h-screen bg-dark-900">
+      <Navbar />
+      <HeroSection />
+      <StatsSection />
+      <TracksSection />
+      <FeaturesSection />
+      <HowItWorks />
+      <CreatureSection />
+      <ProblemPreview />
+      <CTASection />
+      <Footer />
     </div>
-  )
+  );
 }
