@@ -14,8 +14,9 @@ router.get('/', async (req, res) => {
     const { status } = req.query
     const filter = {}
     if (status) {
-      if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' })
-      filter.status = status
+      const safeStatus = VALID_STATUSES.find((v) => v === status)
+      if (!safeStatus) return res.status(400).json({ error: 'Invalid status' })
+      filter.status = safeStatus
     }
 
     const contests = await Contest.find(filter)
@@ -33,7 +34,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
-    const contest = await Contest.findById(req.params.id)
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const contest = await Contest.findById(safeId)
       .populate('problems.problemId', 'title slug difficulty xpReward')
       .populate('createdBy', 'username avatar')
 
@@ -58,7 +60,8 @@ router.post('/', requireAuth, adminOnly, async (req, res) => {
 router.post('/:id/join', requireAuth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
-    const contest = await Contest.findById(req.params.id)
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const contest = await Contest.findById(safeId)
     if (!contest) return res.status(404).json({ error: 'Contest not found' })
 
     if (contest.status === 'ended') {
@@ -84,7 +87,8 @@ router.post('/:id/join', requireAuth, async (req, res) => {
 router.get('/:id/leaderboard', async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
-    const contest = await Contest.findById(req.params.id)
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const contest = await Contest.findById(safeId)
       .select('leaderboard title status')
       .populate('leaderboard.userId', 'username avatar level rank')
 

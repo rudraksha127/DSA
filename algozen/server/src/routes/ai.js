@@ -15,7 +15,8 @@ router.post('/hint', requireAuth, async (req, res) => {
     }
     if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
 
-    const problem = await Problem.findById(problemId).select('title description')
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId).select('title description')
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
 
     const hint = await getHint(problem, { content: code, language }, message)

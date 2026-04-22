@@ -22,32 +22,38 @@ const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // List problems with filters and pagination
 router.get('/', async (req, res) => {
   try {
-    const { track, topic, difficulty, search, page = 1, limit = 20 } = req.query
+    const { track, topic, difficulty, search, page = '1', limit = '20' } = req.query
     const filter = { isActive: true }
 
     if (track) {
-      if (!VALID_TRACKS.includes(track)) return res.status(400).json({ error: 'Invalid track' })
-      filter.track = track
+      const safeTrack = VALID_TRACKS.find((v) => v === track)
+      if (!safeTrack) return res.status(400).json({ error: 'Invalid track' })
+      filter.track = safeTrack
     }
     if (topic) {
-      if (!VALID_TOPICS.includes(topic)) return res.status(400).json({ error: 'Invalid topic' })
-      filter.topic = topic
+      const safeTopic = VALID_TOPICS.find((v) => v === topic)
+      if (!safeTopic) return res.status(400).json({ error: 'Invalid topic' })
+      filter.topic = safeTopic
     }
     if (difficulty) {
-      if (!VALID_DIFFICULTIES.includes(difficulty)) return res.status(400).json({ error: 'Invalid difficulty' })
-      filter.difficulty = difficulty
+      const safeDifficulty = VALID_DIFFICULTIES.find((v) => v === difficulty)
+      if (!safeDifficulty) return res.status(400).json({ error: 'Invalid difficulty' })
+      filter.difficulty = safeDifficulty
     }
     if (search) {
       if (typeof search !== 'string' || search.length > 100) return res.status(400).json({ error: 'Invalid search' })
       filter.title = { $regex: escapeRegex(search), $options: 'i' }
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const pageNum = Math.max(1, parseInt(page) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20))
+    const skip = (pageNum - 1) * limitNum
+
     const [problems, total] = await Promise.all([
       Problem.find(filter)
         .select('-testCases')
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(limitNum)
         .sort({ createdAt: -1 }),
       Problem.countDocuments(filter),
     ])
@@ -55,8 +61,8 @@ router.get('/', async (req, res) => {
     res.json({
       problems,
       total,
-      page: parseInt(page),
-      pages: Math.ceil(total / parseInt(limit)),
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -109,7 +115,8 @@ router.post('/', requireAuth, adminOnly, async (req, res) => {
 router.put('/:id', requireAuth, adminOnly, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
-    const problem = await Problem.findByIdAndUpdate(req.params.id, req.body, {
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const problem = await Problem.findByIdAndUpdate(safeId, req.body, {
       new: true,
       runValidators: true,
     })
@@ -124,7 +131,8 @@ router.put('/:id', requireAuth, adminOnly, async (req, res) => {
 router.delete('/:id', requireAuth, adminOnly, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
-    const problem = await Problem.findByIdAndDelete(req.params.id)
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const problem = await Problem.findByIdAndDelete(safeId)
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
     res.json({ message: 'Problem deleted' })
   } catch (err) {

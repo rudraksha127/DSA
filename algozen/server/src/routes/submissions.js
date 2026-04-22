@@ -19,18 +19,20 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'problemId, code, language required' })
     }
     if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
-    if (!VALID_LANGUAGES.includes(language)) return res.status(400).json({ error: 'Invalid language' })
+    const safeLanguage = VALID_LANGUAGES.find((l) => l === language)
+    if (!safeLanguage) return res.status(400).json({ error: 'Invalid language' })
 
-    const problem = await Problem.findById(problemId)
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId)
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
 
-    if (!problem.supportedLanguages.includes(language)) {
-      return res.status(400).json({ error: `Language ${language} not supported for this problem` })
+    if (!problem.supportedLanguages.includes(safeLanguage)) {
+      return res.status(400).json({ error: `Language ${safeLanguage} not supported for this problem` })
     }
 
     // Run against visible test cases only
     const visibleTestCases = problem.testCases.filter((tc) => !tc.isHidden)
-    const testResults = await submitCode(code, language, visibleTestCases)
+    const testResults = await submitCode(code, safeLanguage, visibleTestCases)
 
     const allPassed = testResults.every((r) => r.passed)
     const status = allPassed ? 'Accepted' : 'WrongAnswer'
@@ -40,7 +42,7 @@ router.post('/', requireAuth, async (req, res) => {
     // Check if first accepted
     const previousAccepted = await Submission.findOne({
       userId: req.user._id,
-      problemId,
+      problemId: safeProblemId,
       status: 'Accepted',
     })
     const isFirstAccepted = allPassed && !previousAccepted
@@ -63,19 +65,24 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // Update problem stats
-    await Problem.findByIdAndUpdate(problemId, {
+    await Problem.findByIdAndUpdate(safeProblemId, {
       $inc: {
         totalSubmissions: 1,
         ...(allPassed ? { totalAccepted: 1 } : {}),
       },
     })
 
+    const safeContestId =
+      contestId && mongoose.isValidObjectId(contestId)
+        ? new mongoose.Types.ObjectId(contestId)
+        : null
+
     const submission = await Submission.create({
       userId: req.user._id,
-      problemId,
-      contestId: contestId && mongoose.isValidObjectId(contestId) ? contestId : null,
+      problemId: safeProblemId,
+      contestId: safeContestId,
       code,
-      language,
+      language: safeLanguage,
       status,
       runtime: Math.round(avgRuntime),
       memory: maxMemory,

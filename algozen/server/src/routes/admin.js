@@ -68,12 +68,15 @@ router.get('/users', requireAuth, adminOnly, async (req, res) => {
 router.put('/users/:id/role', requireAuth, adminOnly, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
     const { role } = req.body
-    if (!['student', 'professor', 'admin'].includes(role)) {
+    const VALID_ROLES = ['student', 'professor', 'admin']
+    const safeRole = VALID_ROLES.find((r) => r === role)
+    if (!safeRole) {
       return res.status(400).json({ error: 'Invalid role' })
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true })
+    const user = await User.findByIdAndUpdate(safeId, { role: safeRole }, { new: true })
     if (!user) return res.status(404).json({ error: 'User not found' })
     res.json(user)
   } catch (err) {
