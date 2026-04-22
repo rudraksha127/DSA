@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
 import { requireAuth } from '../middleware/auth.js'
 import { getHint } from '../services/groq.js'
@@ -12,6 +13,7 @@ router.post('/hint', requireAuth, async (req, res) => {
     if (!problemId || !code || !language) {
       return res.status(400).json({ error: 'problemId, code, language required' })
     }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
 
     const problem = await Problem.findById(problemId).select('title description')
     if (!problem) return res.status(404).json({ error: 'Problem not found' })

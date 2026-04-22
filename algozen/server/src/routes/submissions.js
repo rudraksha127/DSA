@@ -1,10 +1,13 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
 import Submission from '../models/Submission.js'
 import { requireAuth } from '../middleware/auth.js'
 import { submitCode } from '../services/judge0.js'
 import { awardXP, updateStreak } from '../services/xp.js'
 import { io } from '../index.js'
+
+const VALID_LANGUAGES = ['cpp', 'java', 'python', 'javascript']
 
 const router = Router()
 
@@ -15,6 +18,8 @@ router.post('/', requireAuth, async (req, res) => {
     if (!problemId || !code || !language) {
       return res.status(400).json({ error: 'problemId, code, language required' })
     }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
+    if (!VALID_LANGUAGES.includes(language)) return res.status(400).json({ error: 'Invalid language' })
 
     const problem = await Problem.findById(problemId)
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
@@ -68,7 +73,7 @@ router.post('/', requireAuth, async (req, res) => {
     const submission = await Submission.create({
       userId: req.user._id,
       problemId,
-      contestId: contestId || null,
+      contestId: contestId && mongoose.isValidObjectId(contestId) ? contestId : null,
       code,
       language,
       status,

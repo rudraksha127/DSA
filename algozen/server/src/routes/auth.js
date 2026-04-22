@@ -12,10 +12,18 @@ router.post('/register', async (req, res) => {
     if (!clerkId || !username || !email) {
       return res.status(400).json({ error: 'clerkId, username, email required' })
     }
-    const existing = await User.findOne({ clerkId })
+    if (typeof clerkId !== 'string' || typeof username !== 'string' || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' })
+    }
+    const existing = await User.findOne({ clerkId: String(clerkId) })
     if (existing) return res.json(existing)
 
-    const user = await User.create({ clerkId, username, email, avatar: avatar || '' })
+    const user = await User.create({
+      clerkId: String(clerkId),
+      username: String(username),
+      email: String(email),
+      avatar: avatar ? String(avatar) : '',
+    })
     res.status(201).json(user)
   } catch (err) {
     if (err.code === 11000) {
@@ -35,8 +43,8 @@ router.put('/profile', requireAuth, async (req, res) => {
   try {
     const { username, avatar } = req.body
     const updates = {}
-    if (username) updates.username = username
-    if (avatar !== undefined) updates.avatar = avatar
+    if (username) updates.username = String(username)
+    if (avatar !== undefined) updates.avatar = String(avatar)
 
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true })
     res.json(user)

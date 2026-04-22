@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
 import DailyChallenge from '../models/DailyChallenge.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -6,16 +7,40 @@ import { adminOnly } from '../middleware/adminOnly.js'
 
 const router = Router()
 
+const VALID_TRACKS = ['DSA', 'RealWorld']
+const VALID_TOPICS = [
+  'Arrays', 'Strings', 'LinkedList', 'Stack', 'Queue', 'Trees', 'BST', 'Graphs',
+  'DynamicProgramming', 'Recursion', 'Sorting', 'Searching', 'Hashing', 'Greedy',
+  'Backtracking', 'Trie', 'Heap', 'SystemDesign', 'DatabaseOptimization',
+  'APIDesign', 'Scalability', 'Architecture',
+]
+const VALID_DIFFICULTIES = ['Rookie', 'Warrior', 'Legend']
+
+// Escape special regex characters to prevent ReDoS
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 // List problems with filters and pagination
 router.get('/', async (req, res) => {
   try {
     const { track, topic, difficulty, search, page = 1, limit = 20 } = req.query
     const filter = { isActive: true }
 
-    if (track) filter.track = track
-    if (topic) filter.topic = topic
-    if (difficulty) filter.difficulty = difficulty
-    if (search) filter.title = { $regex: search, $options: 'i' }
+    if (track) {
+      if (!VALID_TRACKS.includes(track)) return res.status(400).json({ error: 'Invalid track' })
+      filter.track = track
+    }
+    if (topic) {
+      if (!VALID_TOPICS.includes(topic)) return res.status(400).json({ error: 'Invalid topic' })
+      filter.topic = topic
+    }
+    if (difficulty) {
+      if (!VALID_DIFFICULTIES.includes(difficulty)) return res.status(400).json({ error: 'Invalid difficulty' })
+      filter.difficulty = difficulty
+    }
+    if (search) {
+      if (typeof search !== 'string' || search.length > 100) return res.status(400).json({ error: 'Invalid search' })
+      filter.title = { $regex: escapeRegex(search), $options: 'i' }
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
     const [problems, total] = await Promise.all([
@@ -83,6 +108,7 @@ router.post('/', requireAuth, adminOnly, async (req, res) => {
 // Update problem (admin only)
 router.put('/:id', requireAuth, adminOnly, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const problem = await Problem.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -97,6 +123,7 @@ router.put('/:id', requireAuth, adminOnly, async (req, res) => {
 // Delete problem (admin only)
 router.delete('/:id', requireAuth, adminOnly, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const problem = await Problem.findByIdAndDelete(req.params.id)
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
     res.json({ message: 'Problem deleted' })

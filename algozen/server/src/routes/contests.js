@@ -1,7 +1,10 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Contest from '../models/Contest.js'
 import { requireAuth } from '../middleware/auth.js'
 import { adminOnly } from '../middleware/adminOnly.js'
+
+const VALID_STATUSES = ['draft', 'upcoming', 'live', 'ended']
 
 const router = Router()
 
@@ -10,7 +13,10 @@ router.get('/', async (req, res) => {
   try {
     const { status } = req.query
     const filter = {}
-    if (status) filter.status = status
+    if (status) {
+      if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+      filter.status = status
+    }
 
     const contests = await Contest.find(filter)
       .select('-leaderboard')
@@ -26,6 +32,7 @@ router.get('/', async (req, res) => {
 // Get single contest
 router.get('/:id', async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const contest = await Contest.findById(req.params.id)
       .populate('problems.problemId', 'title slug difficulty xpReward')
       .populate('createdBy', 'username avatar')
@@ -50,6 +57,7 @@ router.post('/', requireAuth, adminOnly, async (req, res) => {
 // Join a contest
 router.post('/:id/join', requireAuth, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const contest = await Contest.findById(req.params.id)
     if (!contest) return res.status(404).json({ error: 'Contest not found' })
 
@@ -75,6 +83,7 @@ router.post('/:id/join', requireAuth, async (req, res) => {
 // Get contest leaderboard
 router.get('/:id/leaderboard', async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const contest = await Contest.findById(req.params.id)
       .select('leaderboard title status')
       .populate('leaderboard.userId', 'username avatar level rank')

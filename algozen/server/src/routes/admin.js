@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import User from '../models/User.js'
 import Problem from '../models/Problem.js'
 import Submission from '../models/Submission.js'
@@ -7,6 +8,8 @@ import { requireAuth } from '../middleware/auth.js'
 import { adminOnly } from '../middleware/adminOnly.js'
 
 const router = Router()
+
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 // Get platform statistics
 router.get('/stats', requireAuth, adminOnly, async (req, res) => {
@@ -41,7 +44,10 @@ router.get('/users', requireAuth, adminOnly, async (req, res) => {
     const { page = 1, limit = 20, search } = req.query
     const skip = (parseInt(page) - 1) * parseInt(limit)
     const filter = {}
-    if (search) filter.username = { $regex: search, $options: 'i' }
+    if (search) {
+      if (typeof search !== 'string' || search.length > 100) return res.status(400).json({ error: 'Invalid search' })
+      filter.username = { $regex: escapeRegex(search), $options: 'i' }
+    }
 
     const [users, total] = await Promise.all([
       User.find(filter)
@@ -61,6 +67,7 @@ router.get('/users', requireAuth, adminOnly, async (req, res) => {
 // Change user role
 router.put('/users/:id/role', requireAuth, adminOnly, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
     const { role } = req.body
     if (!['student', 'professor', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' })
