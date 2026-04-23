@@ -59,7 +59,7 @@ function DifficultyBadge({ difficulty }) {
 }
 
 function FilterSidebar({ statusFilter, setStatusFilter, searchValue, setSearchValue, onClose }) {
-  const { filters, setFilters, fetchProblems } = useProblemStore()
+  const { filters, setFilters } = useProblemStore()
 
   const applyFilter = (patch) => {
     setFilters(patch)
@@ -298,17 +298,13 @@ export default function ProblemsPage() {
 
   // Fetch on filter changes
   useEffect(() => {
-    try {
-      fetchProblems()
-    } catch (_) {}
+    fetchProblems()
   }, [filters.track, filters.difficulty, filters.topic, filters.search, filters.page])
 
   // Fetch user on mount if not loaded
   useEffect(() => {
     if (!user) {
-      try {
-        fetchUser()
-      } catch (_) {}
+      fetchUser()
     }
   }, [])
 

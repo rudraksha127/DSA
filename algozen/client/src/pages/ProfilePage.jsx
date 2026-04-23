@@ -177,10 +177,10 @@ function HeatmapCard({ user }) {
   const heatmapData = useMemo(() => {
     const totalSolved = user?.solvedProblems?.length ?? 0
     const grid = Array(WEEKS).fill(null).map(() => Array(DAYS).fill(0))
-    let seed = totalSolved * 31 + 17
+    const seedState = [totalSolved * 31 + 17]
     const rand = () => {
-      seed = (seed * 1664525 + 1013904223) & 0xffffffff
-      return Math.abs(seed) / 0xffffffff
+      seedState[0] = (seedState[0] * 1664525 + 1013904223) & 0xffffffff
+      return Math.abs(seedState[0]) / 0xffffffff
     }
     let remaining = totalSolved
     for (let attempt = 0; attempt < totalSolved * 3 && remaining > 0; attempt++) {

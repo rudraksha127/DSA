@@ -80,14 +80,20 @@ export default function ProblemSolvePage() {
     if (problem) {
       const langs = problem.supportedLanguages ?? ['python']
       const defaultLang = langs.includes('python') ? 'python' : langs[0]
-      setLanguage(defaultLang)
-      setCode(problem.starterCode?.[defaultLang] ?? '')
+      const timer = setTimeout(() => {
+        setLanguage(defaultLang)
+        setCode(problem.starterCode?.[defaultLang] ?? '')
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [problem?._id])
 
   useEffect(() => {
     if (problem) {
-      setCode(problem.starterCode?.[language] ?? '')
+      const timer = setTimeout(() => {
+        setCode(problem.starterCode?.[language] ?? '')
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [language])
 

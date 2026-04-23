@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import api from '@/lib/api'
 
-const useUserStore = create((set, get) => ({
+const useUserStore = create((set) => ({
   user: null,
   loading: false,
   error: null,
