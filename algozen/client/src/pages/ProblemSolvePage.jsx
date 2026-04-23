@@ -69,6 +69,11 @@ export default function ProblemSolvePage() {
   const [aiReview, setAiReview] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
 
+  // Track which problem we last initialized state for to enable
+  // "update state during render" pattern (React-idiomatic derived state)
+  const [initedProblemId, setInitedProblemId] = useState(null)
+  const [initedLanguage, setInitedLanguage] = useState(null)
+
   const runFnRef = useRef(null)
   const submitFnRef = useRef(null)
 
@@ -76,26 +81,21 @@ export default function ProblemSolvePage() {
     fetchProblem(slug)
   }, [slug])
 
-  useEffect(() => {
-    if (problem) {
-      const langs = problem.supportedLanguages ?? ['python']
-      const defaultLang = langs.includes('python') ? 'python' : langs[0]
-      const timer = setTimeout(() => {
-        setLanguage(defaultLang)
-        setCode(problem.starterCode?.[defaultLang] ?? '')
-      }, 0)
-      return () => clearTimeout(timer)
-    }
-  }, [problem?._id])
+  // Derived state: initialize language + code when a new problem loads
+  if (problem && problem._id !== initedProblemId) {
+    const langs = problem.supportedLanguages ?? ['python']
+    const defaultLang = langs.includes('python') ? 'python' : langs[0]
+    setInitedProblemId(problem._id)
+    setInitedLanguage(defaultLang)
+    setLanguage(defaultLang)
+    setCode(problem.starterCode?.[defaultLang] ?? '')
+  }
 
-  useEffect(() => {
-    if (problem) {
-      const timer = setTimeout(() => {
-        setCode(problem.starterCode?.[language] ?? '')
-      }, 0)
-      return () => clearTimeout(timer)
-    }
-  }, [language])
+  // Derived state: reset code when language changes (but not on initial problem load)
+  if (problem && language !== initedLanguage && initedProblemId === problem._id) {
+    setInitedLanguage(language)
+    setCode(problem.starterCode?.[language] ?? '')
+  }
 
   const handleRun = useCallback(async () => {
     if (!problem || isRunning) return
