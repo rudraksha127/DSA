@@ -1,49 +1,28 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
 import { requireAuth } from '../middleware/auth.js'
-import { getHint, reviewCode, explainSolution } from '../services/groq.js'
+import { getHint } from '../services/groq.js'
 
 const router = Router()
 
+// Get AI hint for a problem
 router.post('/hint', requireAuth, async (req, res) => {
   try {
-    const { problemId, code, hintLevel = 1 } = req.body
-    const problem = await Problem.findById(problemId)
+    const { problemId, code, language, message } = req.body
+    if (!problemId || !code || !language) {
+      return res.status(400).json({ error: 'problemId, code, language required' })
+    }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
+
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId).select('title description')
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
 
-    const hint = await getHint(problem, code, hintLevel)
+    const hint = await getHint(problem, { content: code, language }, message)
     res.json({ hint })
   } catch (err) {
-    console.error('POST /hint error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-})
-
-router.post('/review', requireAuth, async (req, res) => {
-  try {
-    const { problemId, code, language } = req.body
-    const problem = await Problem.findById(problemId)
-    if (!problem) return res.status(404).json({ error: 'Problem not found' })
-
-    const review = await reviewCode(problem, code, language)
-    res.json({ review })
-  } catch (err) {
-    console.error('POST /review error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-})
-
-router.post('/explain', requireAuth, async (req, res) => {
-  try {
-    const { problemId, code, language } = req.body
-    const problem = await Problem.findById(problemId)
-    if (!problem) return res.status(404).json({ error: 'Problem not found' })
-
-    const explanation = await explainSolution(problem, code, language)
-    res.json({ explanation })
-  } catch (err) {
-    console.error('POST /explain error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: err.message })
   }
 })
 

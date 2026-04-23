@@ -1,65 +1,172 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
+import DailyChallenge from '../models/DailyChallenge.js'
+import { requireAuth } from '../middleware/auth.js'
+import { adminOnly } from '../middleware/adminOnly.js'
 
 const router = Router()
 
+const VALID_TRACKS = ['DSA', 'RealWorld']
+const VALID_TOPICS = [
+  'Arrays', 'Strings', 'LinkedList', 'Stack', 'Queue', 'Trees', 'BST', 'Graphs',
+  'DynamicProgramming', 'Recursion', 'Sorting', 'Searching', 'Hashing', 'Greedy',
+  'Backtracking', 'Trie', 'Heap', 'SystemDesign', 'DatabaseOptimization',
+  'APIDesign', 'Scalability', 'Architecture',
+]
+const VALID_DIFFICULTIES = ['Rookie', 'Warrior', 'Legend']
+
+// Escape special regex characters to prevent ReDoS
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// List problems with filters and pagination
 router.get('/', async (req, res) => {
   try {
-    const { track, difficulty, topic, search, page = 1, limit = 20 } = req.query
-    const query = { isActive: true }
+    const { track, topic, difficulty, search, page = '1', limit = '20' } = req.query
+    const filter = { isActive: true }
 
-    const VALID_TRACKS = ['DSA', 'RealWorld']
-    const VALID_DIFFICULTIES = ['Rookie', 'Warrior', 'Legend']
-    const VALID_TOPICS = [
-      'Arrays', 'Strings', 'LinkedList', 'Stack', 'Queue', 'Trees', 'BST',
-      'Graphs', 'DynamicProgramming', 'Recursion', 'Sorting', 'Searching',
-      'Hashing', 'Greedy', 'Backtracking', 'Trie', 'Heap',
-      'SystemDesign', 'DatabaseOptimization', 'APIDesign', 'Scalability', 'Architecture',
-    ]
+    if (track) {
+      const safeTrack = VALID_TRACKS.find((v) => v === track)
+      if (!safeTrack) return res.status(400).json({ error: 'Invalid track' })
+      filter.track = safeTrack
+    }
+    if (topic) {
+      const safeTopic = VALID_TOPICS.find((v) => v === topic)
+      if (!safeTopic) return res.status(400).json({ error: 'Invalid topic' })
+      filter.topic = safeTopic
+    }
+    if (difficulty) {
+      const safeDifficulty = VALID_DIFFICULTIES.find((v) => v === difficulty)
+      if (!safeDifficulty) return res.status(400).json({ error: 'Invalid difficulty' })
+      filter.difficulty = safeDifficulty
+    }
+    if (search) {
+      if (typeof search !== 'string' || search.length > 100) return res.status(400).json({ error: 'Invalid search' })
+      filter.title = { $regex: escapeRegex(search), $options: 'i' }
+    }
 
-    if (track && typeof track === 'string' && VALID_TRACKS.includes(track)) query.track = track
-    if (difficulty && typeof difficulty === 'string' && VALID_DIFFICULTIES.includes(difficulty)) query.difficulty = difficulty
-    if (topic && typeof topic === 'string' && VALID_TOPICS.includes(topic)) query.topic = topic
-    if (search && typeof search === 'string') query.title = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }
+    const pageNum = Math.max(1, parseInt(page) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20))
+    const skip = (pageNum - 1) * limitNum
 
-    const total = await Problem.countDocuments(query)
-    const problems = await Problem.find(query)
-      .select('-testCases -hints -starterCode')
-      .sort({ levelRequired: 1, difficulty: 1 })
-      .skip((page - 1) * limit)
-      .limit(Number(limit))
+    const [problems, total] = await Promise.all([
+      Problem.find(filter)
+        .select('-testCases')
+        .skip(skip)
+        .limit(limitNum)
+        .sort({ createdAt: -1 }),
+      Problem.countDocuments(filter),
+    ])
 
     res.json({
       problems,
-      totalPages: Math.ceil(total / limit),
-      currentPage: Number(page),
       total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
     })
   } catch (err) {
-    console.error('GET /problems error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: err.message })
   }
 })
 
-router.get('/potd', async (req, res) => {
+// Get today's daily challenge
+router.get('/daily', async (req, res) => {
   try {
-    const potd = await Problem.findOne({ isPOTD: true, isActive: true }).select('-testCases')
-    if (!potd) return res.json({ problem: null })
-    res.json({ problem: potd })
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const daily = await DailyChallenge.findOne({
+      date: { $gte: today, $lt: tomorrow },
+    }).populate({ path: 'problemId', select: '-testCases' })
+
+    if (!daily) return res.status(404).json({ error: 'No daily challenge today' })
+    res.json(daily)
   } catch (err) {
-    console.error('GET /problems/potd error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: err.message })
   }
 })
 
+// Get problem by slug
 router.get('/:slug', async (req, res) => {
   try {
-    const problem = await Problem.findOne({ slug: req.params.slug, isActive: true }).select('-testCases')
+    const problem = await Problem.findOne({ slug: req.params.slug, isActive: true }).select(
+      '-testCases'
+    )
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
-    res.json({ problem })
+    res.json(problem)
   } catch (err) {
-    console.error('GET /problems/:slug error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Create problem (admin only)
+router.post('/', requireAuth, adminOnly, async (req, res) => {
+  try {
+    const problem = await Problem.create(req.body)
+    res.status(201).json(problem)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// Update problem (admin only)
+router.put('/:id', requireAuth, adminOnly, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+
+    // Explicitly pick allowed fields to prevent operator injection
+    const {
+      title, slug, description, track, topic, difficulty,
+      levelRequired, xpReward, constraints, examples, testCases,
+      hints, editorialLink, source, sourceId, isActive, isPOTD,
+      supportedLanguages, starterCode,
+    } = req.body
+    const updates = {
+      ...(title !== undefined && { title }),
+      ...(slug !== undefined && { slug }),
+      ...(description !== undefined && { description }),
+      ...(track !== undefined && { track }),
+      ...(topic !== undefined && { topic }),
+      ...(difficulty !== undefined && { difficulty }),
+      ...(levelRequired !== undefined && { levelRequired }),
+      ...(xpReward !== undefined && { xpReward }),
+      ...(constraints !== undefined && { constraints }),
+      ...(examples !== undefined && { examples }),
+      ...(testCases !== undefined && { testCases }),
+      ...(hints !== undefined && { hints }),
+      ...(editorialLink !== undefined && { editorialLink }),
+      ...(source !== undefined && { source }),
+      ...(sourceId !== undefined && { sourceId }),
+      ...(isActive !== undefined && { isActive }),
+      ...(isPOTD !== undefined && { isPOTD }),
+      ...(supportedLanguages !== undefined && { supportedLanguages }),
+      ...(starterCode !== undefined && { starterCode }),
+    }
+
+    const problem = await Problem.findByIdAndUpdate(safeId, updates, {
+      new: true,
+      runValidators: true,
+    })
+    if (!problem) return res.status(404).json({ error: 'Problem not found' })
+    res.json(problem)
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// Delete problem (admin only)
+router.delete('/:id', requireAuth, adminOnly, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
+    const safeId = new mongoose.Types.ObjectId(req.params.id)
+    const problem = await Problem.findByIdAndDelete(safeId)
+    if (!problem) return res.status(404).json({ error: 'Problem not found' })
+    res.json({ message: 'Problem deleted' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 

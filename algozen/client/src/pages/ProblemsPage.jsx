@@ -1,18 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Search,
-  Lock,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react'
-import clsx from 'clsx'
-import useProblemStore from '@/stores/useProblemStore'
-import useUserStore from '@/stores/useUserStore'
+import { useState, useEffect } from 'react'
+import api from '../lib/api'
+import ProblemCard from '../components/problems/ProblemCard'
+import FilterBar from '../components/problems/FilterBar'
+import Spinner from '../components/ui/Spinner'
 
 const TOPICS = [
   'All Topics',
@@ -65,133 +55,49 @@ function FilterSidebar({ statusFilter, setStatusFilter, searchValue, setSearchVa
     setFilters(patch)
   }
 
-  const hasActiveFilters = filters.track || filters.difficulty || filters.topic || filters.search || statusFilter !== 'All'
+  useEffect(() => {
+    setPage(1)
+  }, [filters])
 
-  const clearAll = () => {
-    setFilters({ track: '', difficulty: '', topic: '', search: '', page: 1 })
-    setSearchValue('')
-    setStatusFilter('All')
-  }
+  useEffect(() => {
+    setLoading(true)
+    const params = { page, limit, ...filters }
+    api.get('/api/problems', { params })
+      .then(({ data }) => { setProblems(data.problems || []); setTotal(data.total || 0) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [page, filters])
 
   return (
-    <div className="space-y-6">
-      {/* Close button (mobile only) */}
-      {onClose && (
-        <div className="flex items-center justify-between lg:hidden">
-          <span className="text-white font-semibold">Filters</span>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X size={18} />
-          </button>
-        </div>
-      )}
-
-      {/* Search */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Search
-        </label>
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search problems..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary-500/60"
-          />
-        </div>
-      </div>
-
-      {/* Track */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Track
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {['All', 'DSA', 'RealWorld'].map((t) => {
-            const active = t === 'All' ? !filters.track : filters.track === t
-            return (
+    <div>
+      <h1 className="text-3xl font-bold mb-6">Problems</h1>
+      <FilterBar filters={filters} onChange={setFilters} />
+      {loading ? (
+        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {problems.map(p => <ProblemCard key={p._id} problem={p} />)}
+          </div>
+          {problems.length === 0 && (
+            <p className="text-center text-slate-500 py-20">No problems found</p>
+          )}
+          {total > limit && (
+            <div className="flex justify-center gap-3 mt-8">
               <button
-                key={t}
-                onClick={() => applyFilter({ track: t === 'All' ? '' : t })}
-                className={clsx(
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  active
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-dark-700 text-slate-400 hover:text-white',
-                )}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
               >
-                {t}
+                ← Prev
               </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Difficulty */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Difficulty
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {['All', 'Rookie', 'Warrior', 'Legend'].map((d) => {
-            const active = d === 'All' ? !filters.difficulty : filters.difficulty === d
-            const activeStyle =
-              d === 'All' ? 'bg-primary-600 text-white' : active ? DIFFICULTY_ACTIVE[d] : ''
-            return (
+              <span className="px-4 py-2 text-slate-400">Page {page}</span>
               <button
-                key={d}
-                onClick={() => applyFilter({ difficulty: d === 'All' ? '' : d })}
-                className={clsx(
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  active ? activeStyle : 'bg-dark-700 text-slate-400 hover:text-white',
-                )}
+                onClick={() => setPage(p => p + 1)}
+                disabled={page * limit >= total}
+                className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
               >
-                {d}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Topic */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Topic
-        </label>
-        <select
-          value={filters.topic || ''}
-          onChange={(e) => applyFilter({ topic: e.target.value === 'All Topics' ? '' : e.target.value })}
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500/60"
-        >
-          {TOPICS.map((t) => (
-            <option key={t} value={t === 'All Topics' ? '' : t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Status */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Status
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {['All', 'Solved', 'Unsolved'].map((s) => {
-            const active = statusFilter === s
-            return (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={clsx(
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  active
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-dark-700 text-slate-400 hover:text-white',
-                )}
-              >
-                {s}
+                Next →
               </button>
             )
           })}
@@ -404,84 +310,8 @@ export default function ProblemsPage() {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {/* Stats bar */}
-        <div className="flex items-center justify-between text-sm text-slate-400">
-          <span>
-            Showing <span className="text-white font-medium">{visibleProblems.length}</span> of{' '}
-            <span className="text-white font-medium">{problems.length}</span> problems
-          </span>
-          <span>
-            Solved:{' '}
-            <span className="text-green-400 font-medium">{solvedCount}</span>
-            {' / '}
-            <span className="text-white font-medium">{problems.length}</span>
-          </span>
-        </div>
-
-        {/* Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse bg-dark-800 rounded-xl h-36 border border-dark-600"
-              />
-            ))}
-          </div>
-        ) : visibleProblems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
-            <Search size={32} className="opacity-40" />
-            <p className="text-base">No problems match your filters.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {visibleProblems.map((problem) => (
-              <ProblemCard
-                key={problem._id}
-                problem={problem}
-                isSolved={solvedSet.has(problem._id)}
-                isLocked={problem.levelRequired > (user?.level ?? 0)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-2">
-            <button
-              disabled={filters.page <= 1}
-              onClick={() => {
-                setFilters({ page: filters.page - 1 })
-                fetchProblems()
-              }}
-              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={15} />
-              Prev
-            </button>
-
-            <span className="text-sm text-slate-400">
-              Page <span className="text-white font-medium">{filters.page}</span> of{' '}
-              <span className="text-white font-medium">{totalPages}</span>
-            </span>
-
-            <button
-              disabled={filters.page >= totalPages}
-              onClick={() => {
-                setFilters({ page: filters.page + 1 })
-                fetchProblems()
-              }}
-              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-dark-800 border border-dark-600 text-sm text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        )}
-      </main>
+        </>
+      )}
     </div>
   )
 }
