@@ -2,7 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
 import { requireAuth } from '../middleware/auth.js'
-import { getHint } from '../services/groq.js'
+import { getHint, getReview } from '../services/groq.js'
 
 const router = Router()
 

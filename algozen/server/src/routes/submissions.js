@@ -11,8 +11,33 @@ const VALID_LANGUAGES = ['cpp', 'java', 'python', 'javascript']
 
 const router = Router()
 
-// Submit code
-router.post('/', requireAuth, async (req, res) => {
+// Run code against visible test cases (no submission saved)
+router.post('/run', requireAuth, async (req, res) => {
+  try {
+    const { problemId, code, language } = req.body
+    if (!problemId || !code || !language) {
+      return res.status(400).json({ error: 'problemId, code, language required' })
+    }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
+    const safeLanguage = VALID_LANGUAGES.find((l) => l === language)
+    if (!safeLanguage) return res.status(400).json({ error: 'Invalid language' })
+
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId)
+    if (!problem) return res.status(404).json({ error: 'Problem not found' })
+
+    const visibleTestCases = problem.testCases.filter((tc) => !tc.isHidden)
+    const results = await submitCode(code, safeLanguage, visibleTestCases)
+    res.json({ results })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Submit code (alias POST / — keeps route name explicit for clients)
+// (kept for clients that POST /submissions/submit explicitly)
+
+async function handleSubmit(req, res) {
   try {
     const { problemId, code, language, contestId } = req.body
     if (!problemId || !code || !language) {
@@ -103,7 +128,10 @@ router.post('/', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
-})
+}
+
+router.post('/',       requireAuth, handleSubmit)
+router.post('/submit', requireAuth, handleSubmit)
 
 // Get current user's submissions (paginated)
 router.get('/my', requireAuth, async (req, res) => {

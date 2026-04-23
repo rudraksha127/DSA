@@ -57,6 +57,10 @@ app.use('/api/admin',       adminRoutes)
 io.on('connection', (socket) => {
   console.log(`⚡ User connected: ${socket.id}`)
 
+  socket.on('join-user', (userId) => {
+    socket.join(userId)
+  })
+
   socket.on('join-contest', (contestId) => {
     socket.join(`contest-${contestId}`)
   })
