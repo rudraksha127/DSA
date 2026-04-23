@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useAuth, RedirectToSignIn, SignedIn, SignedOut } from '@clerk/clerk-react'
+import { motion } from 'framer-motion'
 import useAuthStore from '../store/useAuthStore'
 import api from '../lib/api'
 import Spinner from '../components/ui/Spinner'
-import Badge from '../components/ui/Badge'
 import { Zap, Flame, CheckCircle } from 'lucide-react'
 
 const LEVEL_THRESHOLDS = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000]
@@ -194,8 +194,46 @@ function HeatmapCard({ user }) {
     return grid
   }, [user?.solvedProblems?.length])
 
+  return (
+    <div className="bg-dark-800/60 border border-dark-600 rounded-2xl p-6">
+      <h3 className="text-white font-semibold mb-4">Solving Activity</h3>
+      <div className="flex gap-1 overflow-x-auto">
+        {heatmapData.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-1">
+            {week.map((count, di) => (
+              <div
+                key={di}
+                title={`${count} submission(s)`}
+                className={`w-3 h-3 rounded-sm ${
+                  count === 0 ? 'bg-dark-700' :
+                  count === 1 ? 'bg-primary-900' :
+                  count === 2 ? 'bg-primary-600' : 'bg-primary-400'
+                }`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ icon, label, value }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+      <div className="flex justify-center mb-1">{icon}</div>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-slate-400 text-sm">{label}</p>
+    </div>
+  )
+}
+
+export default function ProfilePage() {
+  const { getToken } = useAuth()
+  const { user, loading, fetchUser } = useAuthStore()
+
   useEffect(() => {
-    getToken().then(token => {
+    getToken().then((token) => {
       if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`
       fetchUser()
     })
@@ -209,28 +247,14 @@ function HeatmapCard({ user }) {
         {loading ? (
           <div className="flex justify-center py-20"><Spinner size="lg" /></div>
         ) : user ? (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex items-center gap-4">
-              {user.avatar ? (
-                <img src={user.avatar} alt="" className="w-16 h-16 rounded-full" />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-indigo-700 flex items-center justify-center text-2xl font-bold">
-                  {user.username?.[0]?.toUpperCase()}
-                </div>
-              )}
-              <div>
-                <h2 className="text-2xl font-bold">{user.username}</h2>
-                <div className="flex gap-2 mt-1">
-                  <Badge label={user.rank} variant={user.rank} />
-                  <Badge label={`Level ${user.level}`} />
-                </div>
-              </div>
-            </div>
+          <div className="max-w-4xl mx-auto p-6 space-y-6">
+            <HeroCard user={user} />
             <div className="grid grid-cols-3 gap-4">
-              <StatCard icon={<Zap className="w-6 h-6 text-yellow-400" />} label="XP" value={user.xp} />
-              <StatCard icon={<Flame className="w-6 h-6 text-orange-400" />} label="Streak" value={`${user.streak?.current || 0} days`} />
-              <StatCard icon={<CheckCircle className="w-6 h-6 text-green-400" />} label="Solved" value={user.solvedProblems?.length || 0} />
+              <StatCard icon={<Zap className="w-6 h-6 text-yellow-400" />} label="XP" value={user.xp ?? 0} />
+              <StatCard icon={<Flame className="w-6 h-6 text-orange-400" />} label="Streak" value={`${user.streak?.current ?? 0} days`} />
+              <StatCard icon={<CheckCircle className="w-6 h-6 text-green-400" />} label="Solved" value={user.solvedProblems?.length ?? 0} />
             </div>
+            <HeatmapCard user={user} />
           </div>
         ) : (
           <p className="text-center py-20 text-slate-500">
@@ -239,15 +263,5 @@ function HeatmapCard({ user }) {
         )}
       </SignedIn>
     </>
-  )
-}
-
-function StatCard({ icon, label, value }) {
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-      <div className="flex justify-center mb-1">{icon}</div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-slate-400 text-sm">{label}</p>
-    </div>
   )
 }

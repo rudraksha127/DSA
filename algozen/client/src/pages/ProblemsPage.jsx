@@ -1,43 +1,17 @@
 import { useState, useEffect } from 'react'
-import api from '../lib/api'
-import ProblemCard from '../components/problems/ProblemCard'
+import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { SlidersHorizontal, Check, Lock } from 'lucide-react'
+import clsx from 'clsx'
 import FilterBar from '../components/problems/FilterBar'
 import Spinner from '../components/ui/Spinner'
-
-const TOPICS = [
-  'All Topics',
-  'Arrays',
-  'Strings',
-  'LinkedList',
-  'Trees',
-  'Graphs',
-  'DynamicProgramming',
-  'Sorting',
-  'Searching',
-  'Hashing',
-  'Recursion',
-  'Stack',
-  'Queue',
-  'Heap',
-  'Math',
-  'Greedy',
-  'TwoPointers',
-  'SlidingWindow',
-  'BinarySearch',
-  'Backtracking',
-  'BitManipulation',
-]
+import useProblemStore from '../stores/useProblemStore'
+import useUserStore from '../stores/useUserStore'
 
 const DIFFICULTY_STYLES = {
   Rookie: 'text-green-400 bg-green-900/30 border border-green-700/30',
   Warrior: 'text-yellow-400 bg-yellow-900/30 border border-yellow-700/30',
   Legend: 'text-red-400 bg-red-900/30 border border-red-700/30',
-}
-
-const DIFFICULTY_ACTIVE = {
-  Rookie: 'bg-green-700 text-white',
-  Warrior: 'bg-yellow-600 text-white',
-  Legend: 'bg-red-700 text-white',
 }
 
 function DifficultyBadge({ difficulty }) {
@@ -48,60 +22,46 @@ function DifficultyBadge({ difficulty }) {
   )
 }
 
-function FilterSidebar({ statusFilter, setStatusFilter, searchValue, setSearchValue, onClose }) {
+function FilterSidebar({ statusFilter, setStatusFilter, onClose }) {
   const { filters, setFilters } = useProblemStore()
 
-  const applyFilter = (patch) => {
-    setFilters(patch)
+  const hasActiveFilters =
+    filters.difficulty || filters.track || filters.topic || filters.search || statusFilter !== 'All'
+
+  const clearAll = () => {
+    setFilters({ difficulty: '', track: '', topic: '', search: '' })
+    setStatusFilter('All')
   }
 
-  useEffect(() => {
-    setPage(1)
-  }, [filters])
-
-  useEffect(() => {
-    setLoading(true)
-    const params = { page, limit, ...filters }
-    api.get('/api/problems', { params })
-      .then(({ data }) => { setProblems(data.problems || []); setTotal(data.total || 0) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [page, filters])
-
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Problems</h1>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-white">Filters</h2>
+        {onClose && (
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none">
+            ✕
+          </button>
+        )}
+      </div>
+
       <FilterBar filters={filters} onChange={setFilters} />
-      {loading ? (
-        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {problems.map(p => <ProblemCard key={p._id} problem={p} />)}
-          </div>
-          {problems.length === 0 && (
-            <p className="text-center text-slate-500 py-20">No problems found</p>
-          )}
-          {total > limit && (
-            <div className="flex justify-center gap-3 mt-8">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
-              >
-                ← Prev
-              </button>
-              <span className="px-4 py-2 text-slate-400">Page {page}</span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={page * limit >= total}
-                className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
-              >
-                Next →
-              </button>
-            )
-          })}
-        </div>
+
+      {/* Status filter */}
+      <div className="space-y-1">
+        {['All', 'Solved', 'Unsolved'].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={clsx(
+              'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+              statusFilter === s
+                ? 'bg-primary-600 text-white'
+                : 'text-slate-400 hover:text-white hover:bg-dark-700',
+            )}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
       {/* Clear Filters */}
@@ -184,23 +144,11 @@ function ProblemCard({ problem, isSolved, isLocked }) {
 }
 
 export default function ProblemsPage() {
-  const { problems, loading, filters, totalPages, setFilters, fetchProblems } = useProblemStore()
+  const { problems, loading, filters, totalPages, setFilters, setPage, fetchProblems } = useProblemStore()
   const { user, fetchUser } = useUserStore()
 
-  const [searchValue, setSearchValue] = useState(filters.search || '')
   const [statusFilter, setStatusFilter] = useState('All')
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
-
-  const debounceRef = useRef(null)
-
-  // Debounce search input → store
-  useEffect(() => {
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      setFilters({ search: searchValue })
-    }, 300)
-    return () => clearTimeout(debounceRef.current)
-  }, [searchValue])
 
   // Fetch on filter changes
   useEffect(() => {
@@ -225,9 +173,7 @@ export default function ProblemsPage() {
 
   const potd = problems.find((p) => p.isPOTD)
 
-  const solvedCount = problems.filter((p) => solvedSet.has(p._id)).length
-
-  const sidebarProps = { statusFilter, setStatusFilter, searchValue, setSearchValue }
+  const sidebarProps = { statusFilter, setStatusFilter }
 
   return (
     <div className="flex h-full">
@@ -310,8 +256,54 @@ export default function ProblemsPage() {
               </div>
             </motion.div>
           )}
-        </>
-      )}
+        </AnimatePresence>
+
+        {/* Problem Grid */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Spinner size="lg" />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {visibleProblems.map((p) => (
+                <ProblemCard
+                  key={p._id}
+                  problem={p}
+                  isSolved={solvedSet.has(p._id)}
+                  isLocked={false}
+                />
+              ))}
+            </div>
+            {visibleProblems.length === 0 && (
+              <p className="text-center text-slate-500 py-20">No problems found</p>
+            )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-3 mt-8">
+                <button
+                  onClick={() => setPage(Math.max(1, filters.page - 1))}
+                  disabled={filters.page === 1}
+                  className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
+                >
+                  ← Prev
+                </button>
+                <span className="px-4 py-2 text-slate-400">
+                  Page {filters.page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(filters.page + 1)}
+                  disabled={filters.page >= totalPages}
+                  className="px-4 py-2 bg-slate-800 rounded-lg disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   )
 }
+
