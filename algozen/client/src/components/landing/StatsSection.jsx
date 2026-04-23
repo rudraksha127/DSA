@@ -33,7 +33,7 @@ const stats = [
   },
 ];
 
-function AnimatedCounter({ target, suffix, display, inView }) {
+function AnimatedCounter({ target, suffix, inView }) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
 

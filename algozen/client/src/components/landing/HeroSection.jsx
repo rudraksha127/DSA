@@ -131,8 +131,10 @@ export default function HeroSection() {
     } else if (deleting && displayed.length > 0) {
       timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 50);
     } else if (deleting && displayed.length === 0) {
-      setDeleting(false);
-      setWordIndex((i) => (i + 1) % TYPEWRITER_WORDS.length);
+      timeout = setTimeout(() => {
+        setDeleting(false);
+        setWordIndex((i) => (i + 1) % TYPEWRITER_WORDS.length);
+      }, 50);
     }
 
     return () => clearTimeout(timeout);
