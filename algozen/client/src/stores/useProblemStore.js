@@ -20,6 +20,11 @@ const useProblemStore = create((set, get) => ({
       filters: { ...state.filters, ...filters, page: 1 },
     })),
 
+  setPage: (page) =>
+    set((state) => ({
+      filters: { ...state.filters, page },
+    })),
+
   fetchProblems: async () => {
     set({ loading: true, error: null })
     try {
