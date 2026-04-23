@@ -1,64 +1,89 @@
-import express, { Router } from 'express'
+import { Router } from 'express'
 import { Webhook } from 'svix'
 import User from '../models/User.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
-  let evt
+// Register user (called after Clerk signup)
+router.post('/register', async (req, res) => {
   try {
-    evt = wh.verify(req.body, {
-      'svix-id':        req.headers['svix-id'],
-      'svix-timestamp': req.headers['svix-timestamp'],
-      'svix-signature': req.headers['svix-signature'],
+    const { clerkId, username, email, avatar } = req.body
+    if (!clerkId || !username || !email) {
+      return res.status(400).json({ error: 'clerkId, username, email required' })
+    }
+    if (typeof clerkId !== 'string' || typeof username !== 'string' || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid input types' })
+    }
+    const existing = await User.findOne({ clerkId: String(clerkId) })
+    if (existing) return res.json(existing)
+
+    const user = await User.create({
+      clerkId: String(clerkId),
+      username: String(username),
+      email: String(email),
+      avatar: avatar ? String(avatar) : '',
     })
+    res.status(201).json(user)
   } catch (err) {
-    return res.status(400).json({ error: 'Invalid webhook signature' })
-  }
-
-  const { type, data } = evt
-
-  try {
-    if (type === 'user.created') {
-      await User.create({
-        clerkId:  data.id,
-        email:    data.email_addresses[0].email_address,
-        username: data.username || data.email_addresses[0].email_address.split('@')[0],
-        avatar:   data.image_url || '',
-      })
-    } else if (type === 'user.updated') {
-      await User.findOneAndUpdate({ clerkId: data.id }, { avatar: data.image_url })
-    } else if (type === 'user.deleted') {
-      await User.findOneAndDelete({ clerkId: data.id })
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Username or email already taken' })
     }
-  } catch (err) {
-    console.error('Webhook handler error:', err.message)
+    res.status(500).json({ error: err.message })
   }
-
-  res.json({ received: true })
 })
 
+// Get current user
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ user: req.user })
+  res.json(req.user)
 })
 
-router.patch('/me', requireAuth, async (req, res) => {
+// Update profile
+router.put('/profile', requireAuth, async (req, res) => {
   try {
-    const { username } = req.body
-    if (username) {
-      const existing = await User.findOne({ username })
-      if (existing && existing.clerkId !== req.user.clerkId) {
-        return res.status(400).json({ error: 'Username already taken' })
-      }
-      req.user.username = username
-      await req.user.save()
-    }
-    res.json({ user: req.user })
+    const { username, avatar } = req.body
+    const updates = {}
+    if (username) updates.username = String(username)
+    if (avatar !== undefined) updates.avatar = String(avatar)
+
+    const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true })
+    res.json(user)
   } catch (err) {
-    console.error('PATCH /me error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    if (err.code === 11000) return res.status(409).json({ error: 'Username already taken' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Clerk webhook
+router.post('/webhook', async (req, res) => {
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
+  if (!WEBHOOK_SECRET) return res.status(500).json({ error: 'No webhook secret configured' })
+
+  const headers = {
+    'svix-id': req.headers['svix-id'],
+    'svix-timestamp': req.headers['svix-timestamp'],
+    'svix-signature': req.headers['svix-signature'],
+  }
+
+  try {
+    const wh = new Webhook(WEBHOOK_SECRET)
+    const payload = JSON.stringify(req.body)
+    const evt = wh.verify(payload, headers)
+
+    if (evt.type === 'user.created') {
+      const { id, email_addresses, username, image_url } = evt.data
+      const email = email_addresses[0]?.email_address || ''
+      const uname = username || email.split('@')[0]
+      await User.create({ clerkId: id, username: uname, email, avatar: image_url || '' }).catch(() => {})
+    }
+
+    if (evt.type === 'user.deleted') {
+      await User.findOneAndDelete({ clerkId: evt.data.id })
+    }
+
+    res.json({ received: true })
+  } catch (err) {
+    res.status(400).json({ error: 'Webhook verification failed' })
   }
 })
 

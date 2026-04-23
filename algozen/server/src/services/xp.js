@@ -1,31 +1,41 @@
 import User from '../models/User.js'
 
-export const awardXP = async (userId, amount, reason = '') => {
+export const awardXP = async (userId, amount) => {
   const user = await User.findById(userId)
-  if (!user) throw new Error('User not found')
-
-  const prevLevel = user.level
+  if (!user) return null
   user.xp += amount
-  user.creature.xp += amount
   user.calculateLevel()
-
-  const newStage  = Math.min(Math.floor(user.level / 5), 4)
-  const evolved   = newStage > user.creature.stage
-  if (evolved) {
-    user.creature.stage = newStage
-    const stageNames = ['Algo Egg', 'Baby Coder', 'Code Lizard', 'Algorithm Dragon', 'Legend Beast']
-    user.creature.name = stageNames[newStage]
-  }
-
   await user.save()
+  return user
+}
 
-  return {
-    user,
-    xpGained: amount,
-    prevLevel,
-    newLevel:  user.level,
-    leveledUp: user.level > prevLevel,
-    evolved,
-    reason,
+export const updateStreak = async (userId) => {
+  const user = await User.findById(userId)
+  if (!user) return null
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const lastActive = user.streak.lastActive ? new Date(user.streak.lastActive) : null
+  if (lastActive) lastActive.setHours(0, 0, 0, 0)
+
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (!lastActive) {
+    user.streak.current = 1
+  } else if (lastActive.getTime() === today.getTime()) {
+    // already active today, no change
+  } else if (lastActive.getTime() === yesterday.getTime()) {
+    user.streak.current += 1
+  } else {
+    user.streak.current = 1
   }
+
+  if (user.streak.current > user.streak.longest) {
+    user.streak.longest = user.streak.current
+  }
+  user.streak.lastActive = today
+  await user.save()
+  return user
 }

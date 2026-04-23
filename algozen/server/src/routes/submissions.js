@@ -1,152 +1,142 @@
 import { Router } from 'express'
-import Submission from '../models/Submission.js'
+import mongoose from 'mongoose'
 import Problem from '../models/Problem.js'
+import Submission from '../models/Submission.js'
 import { requireAuth } from '../middleware/auth.js'
-import { runTestCases, executeCode } from '../services/judge0.js'
-import { awardXP } from '../services/xp.js'
-import { updateStreak } from '../services/streak.js'
+import { submitCode } from '../services/judge0.js'
+import { awardXP, updateStreak } from '../services/xp.js'
 import { io } from '../index.js'
+
+const VALID_LANGUAGES = ['cpp', 'java', 'python', 'javascript']
 
 const router = Router()
 
-router.post('/run', requireAuth, async (req, res) => {
+// Submit code
+router.post('/', requireAuth, async (req, res) => {
   try {
-    const { code, language, problemId, stdin } = req.body
-
-    if (!code || !language || !problemId) {
-      return res.status(400).json({ error: 'code, language, and problemId are required' })
+    const { problemId, code, language, contestId } = req.body
+    if (!problemId || !code || !language) {
+      return res.status(400).json({ error: 'problemId, code, language required' })
     }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
+    const safeLanguage = VALID_LANGUAGES.find((l) => l === language)
+    if (!safeLanguage) return res.status(400).json({ error: 'Invalid language' })
 
-    const problem = await Problem.findById(problemId)
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId)
     if (!problem) return res.status(404).json({ error: 'Problem not found' })
 
-    const visibleCases = problem.testCases.filter(tc => !tc.isHidden).slice(0, 3)
-
-    if (visibleCases.length === 0 && stdin) {
-      const result = await executeCode(code, language, stdin)
-      return res.json({
-        results: [{ passed: true, input: stdin, got: result.stdout, runtime: result.runtime }],
-        customRun: true,
-      })
+    if (!problem.supportedLanguages.includes(safeLanguage)) {
+      return res.status(400).json({ error: `Language ${safeLanguage} not supported for this problem` })
     }
 
-    const results = await runTestCases(code, language, visibleCases)
-    res.json({ results })
-  } catch (err) {
-    console.error('POST /run error:', err.message)
-    res.status(500).json({ error: err.message || 'Internal server error' })
-  }
-})
+    // Run against visible test cases only
+    const visibleTestCases = problem.testCases.filter((tc) => !tc.isHidden)
+    const testResults = await submitCode(code, safeLanguage, visibleTestCases)
 
-router.post('/submit', requireAuth, async (req, res) => {
-  try {
-    const { code, language, problemId } = req.body
+    const allPassed = testResults.every((r) => r.passed)
+    const status = allPassed ? 'Accepted' : 'WrongAnswer'
+    const avgRuntime = testResults.reduce((s, r) => s + r.runtime, 0) / (testResults.length || 1)
+    const maxMemory = Math.max(...testResults.map((r) => r.memory), 0)
 
-    if (!code || !language || !problemId) {
-      return res.status(400).json({ error: 'code, language, and problemId are required' })
-    }
-
-    const problem = await Problem.findById(problemId)
-    if (!problem) return res.status(404).json({ error: 'Problem not found' })
-
-    const results    = await runTestCases(code, language, problem.testCases)
-    const allPassed  = results.every(r => r.passed)
-
-    const hasCompile = results.some(r => r.status && r.status.toLowerCase().includes('compile'))
-    const hasRuntime = results.some(r => r.status && (r.status.toLowerCase().includes('runtime') || r.status === 'Error'))
-
-    let finalStatus = allPassed ? 'Accepted' : 'WrongAnswer'
-    if (hasCompile) finalStatus = 'CompileError'
-    else if (hasRuntime && !allPassed) finalStatus = 'RuntimeError'
-
-    const maxRuntime = Math.max(...results.map(r => r.runtime || 0))
-
+    // Check if first accepted
     const previousAccepted = await Submission.findOne({
-      userId:    req.user._id,
-      problemId: problem._id,
-      status:    'Accepted',
+      userId: req.user._id,
+      problemId: safeProblemId,
+      status: 'Accepted',
     })
     const isFirstAccepted = allPassed && !previousAccepted
 
-    const submission = await Submission.create({
-      userId:    req.user._id,
-      problemId: problem._id,
-      code,
-      language,
-      status:    finalStatus,
-      runtime:   maxRuntime,
-      testResults: results.map(r => ({
-        passed:   r.passed,
-        input:    r.input,
-        expected: r.expected,
-        got:      r.got,
-        runtime:  r.runtime,
-      })),
-      isFirstAccepted,
-      xpEarned: 0,
-    })
-
-    problem.totalSubmissions += 1
-    if (allPassed) problem.totalAccepted += 1
-    await problem.save()
-
-    let xpResult = null
-
-    if (allPassed) {
-      const xpToAward      = isFirstAccepted ? problem.xpReward : Math.floor(problem.xpReward * 0.1)
-      submission.xpEarned  = xpToAward
-      await submission.save()
-
-      if (isFirstAccepted) {
-        req.user.solvedProblems.push(problem._id)
-        await req.user.save()
-      }
-
-      xpResult = await awardXP(req.user._id, xpToAward, `Solved: ${problem.title}`)
+    let xpEarned = 0
+    if (isFirstAccepted) {
+      xpEarned = problem.xpReward
+      await awardXP(req.user._id, xpEarned)
       await updateStreak(req.user._id)
 
-      io.emit('xp-update', {
-        userId:    req.user._id,
-        xpGained:  xpToAward,
-        leveledUp: xpResult.leveledUp,
+      // Track solved problem
+      await req.user.updateOne({
+        $addToSet: { solvedProblems: problem._id },
+      })
+    } else if (!previousAccepted) {
+      // Track attempted problem
+      await req.user.updateOne({
+        $addToSet: { attemptedProblems: problem._id },
       })
     }
 
-    res.json({
-      submission: {
-        id:          submission._id,
-        status:      finalStatus,
-        runtime:     maxRuntime,
-        testResults: results,
-        xpEarned:    submission.xpEarned,
+    // Update problem stats
+    await Problem.findByIdAndUpdate(safeProblemId, {
+      $inc: {
+        totalSubmissions: 1,
+        ...(allPassed ? { totalAccepted: 1 } : {}),
       },
-      xpResult,
-      allPassed,
-      totalTests:  results.length,
-      passedTests: results.filter(r => r.passed).length,
     })
+
+    const safeContestId =
+      contestId && mongoose.isValidObjectId(contestId)
+        ? new mongoose.Types.ObjectId(contestId)
+        : null
+
+    const submission = await Submission.create({
+      userId: req.user._id,
+      problemId: safeProblemId,
+      contestId: safeContestId,
+      code,
+      language: safeLanguage,
+      status,
+      runtime: Math.round(avgRuntime),
+      memory: maxMemory,
+      xpEarned,
+      testResults,
+      isFirstAccepted,
+    })
+
+    // Emit real-time result to user
+    io.to(req.userId).emit('submission-result', {
+      submissionId: submission._id,
+      status,
+      xpEarned,
+      isFirstAccepted,
+    })
+
+    res.status(201).json(submission)
   } catch (err) {
-    console.error('POST /submit error:', err.message)
-    res.status(500).json({ error: err.message || 'Internal server error' })
+    res.status(500).json({ error: err.message })
   }
 })
 
+// Get current user's submissions (paginated)
 router.get('/my', requireAuth, async (req, res) => {
   try {
-    const { problemId, page = 1, limit = 20 } = req.query
-    const query = { userId: req.user._id }
-    if (problemId) query.problemId = problemId
+    const { page = 1, limit = 20 } = req.query
+    const skip = (parseInt(page) - 1) * parseInt(limit)
 
-    const submissions = await Submission.find(query)
-      .populate('problemId', 'title slug difficulty')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(Number(limit))
+    const [submissions, total] = await Promise.all([
+      Submission.find({ userId: req.user._id })
+        .populate('problemId', 'title slug difficulty')
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 }),
+      Submission.countDocuments({ userId: req.user._id }),
+    ])
 
-    res.json({ submissions })
+    res.json({ submissions, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
   } catch (err) {
-    console.error('GET /my error:', err.message)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Get user's submissions for a specific problem
+router.get('/problem/:problemId', requireAuth, async (req, res) => {
+  try {
+    const submissions = await Submission.find({
+      userId: req.user._id,
+      problemId: req.params.problemId,
+    }).sort({ createdAt: -1 })
+
+    res.json(submissions)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
