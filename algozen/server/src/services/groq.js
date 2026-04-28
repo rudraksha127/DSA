@@ -1,10 +1,12 @@
 import Groq from 'groq-sdk'
-import dotenv from 'dotenv'
-dotenv.config()
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const groqApiKey = process.env.GROQ_API_KEY
+const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
 
 export const getHint = async (problem, code, userMessage = '') => {
+  if (!groq) {
+    return 'AI hints are currently unavailable (missing GROQ_API_KEY).'
+  }
   const systemPrompt = `You are AlgoZen AI, an expert DSA tutor. 
 Help students understand and solve coding problems without giving direct answers.
 Give hints, point out logical issues, and guide them step by step.
@@ -35,6 +37,9 @@ Give a helpful hint without revealing the complete solution.`
 }
 
 export const getReview = async (problem, code) => {
+  if (!groq) {
+    return 'AI reviews are currently unavailable (missing GROQ_API_KEY).'
+  }
   const systemPrompt = `You are AlgoZen AI, an expert code reviewer.
 Review the student's code for correctness, efficiency, style, and best practices.
 Be constructive, specific, and concise. Highlight both strengths and areas for improvement.`
