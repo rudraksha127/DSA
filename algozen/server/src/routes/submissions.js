@@ -117,7 +117,7 @@ async function handleSubmit(req, res) {
     })
 
     // Emit real-time result to user
-    io.to(req.userId).emit('submission-result', {
+    io.to(req.user._id.toString()).emit('submission-result', {
       submissionId: submission._id,
       status,
       xpEarned,

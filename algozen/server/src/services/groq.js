@@ -33,3 +33,30 @@ Give a helpful hint without revealing the complete solution.`
 
   return completion.choices[0]?.message?.content || 'Sorry, I could not generate a hint.'
 }
+
+export const getReview = async (problem, code) => {
+  const systemPrompt = `You are AlgoZen AI, an expert code reviewer.
+Review the student's code for correctness, efficiency, style, and best practices.
+Be constructive, specific, and concise. Highlight both strengths and areas for improvement.`
+
+  const userPrompt = `Problem: ${problem.title}
+Description: ${problem.description}
+
+Student's code (${code.language}):
+\`\`\`
+${code.content}
+\`\`\`
+
+Please review this code and provide actionable feedback.`
+
+  const completion = await groq.chat.completions.create({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    model: 'llama3-8b-8192',
+    max_tokens: 600,
+  })
+
+  return completion.choices[0]?.message?.content || 'Sorry, I could not generate a review.'
+}

@@ -26,4 +26,24 @@ router.post('/hint', requireAuth, async (req, res) => {
   }
 })
 
+// Get AI code review for a problem
+router.post('/review', requireAuth, async (req, res) => {
+  try {
+    const { problemId, code, language } = req.body
+    if (!problemId || !code || !language) {
+      return res.status(400).json({ error: 'problemId, code, language required' })
+    }
+    if (!mongoose.isValidObjectId(problemId)) return res.status(400).json({ error: 'Invalid problemId' })
+
+    const safeProblemId = new mongoose.Types.ObjectId(problemId)
+    const problem = await Problem.findById(safeProblemId).select('title description')
+    if (!problem) return res.status(404).json({ error: 'Problem not found' })
+
+    const review = await getReview(problem, { content: code, language })
+    res.json({ review })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 export default router
