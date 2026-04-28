@@ -40,6 +40,32 @@ npm install
 npm run dev
 ```
 
+## ▲ Deploy on Vercel
+
+This repo is a monorepo (`client` + `server`). For a single Vercel project, deploy from the `algozen/` directory.
+
+### Vercel Project Settings
+- **Root Directory:** `algozen`
+- **Framework Preset:** Vite
+- **Build Command:** `cd client && npm ci && npm run build`
+- **Output Directory:** `client/dist`
+
+### API (server) on Vercel
+- API is exposed under `https://<your-domain>/api/*` via `algozen/api/index.js`.
+- Set the required environment variables in Vercel (below).
+
+### Required Environment Variables
+- `MONGODB_URI`
+- `CLERK_SECRET_KEY`
+- `CLERK_WEBHOOK_SECRET`
+- `JUDGE0_URL`
+- `JUDGE0_AUTH_TOKEN`
+- `ADMIN_SECRET`
+
+### Optional Environment Variables
+- `GROQ_API_KEY` (AI hints/reviews; if missing, AI endpoints return a friendly message)
+- `CLIENT_URL` (CORS allow-list; if missing, CORS is permissive)
+
 ## 📋 Phases
 - [x] Phase 0: Foundation
 - [ ] Phase 1: Landing Page
