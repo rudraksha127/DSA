@@ -26,7 +26,7 @@ export default function ProblemDetailPage() {
   const [activeTab, setActiveTab] = useState('description')
 
   useEffect(() => {
-    api.get(`/api/problems/${slug}`)
+    api.get(`/problems/${slug}`)
       .then(({ data }) => { setProblem(data); setCode(data.starterCode?.[language] || '') })
       .catch(() => toast.error('Problem not found'))
       .finally(() => setLoading(false))
@@ -45,7 +45,7 @@ export default function ProblemDetailPage() {
     try {
       const token = await getToken()
       const { data } = await api.post(
-        '/api/submissions',
+        '/submissions',
         { problemId: problem._id, code, language },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -64,7 +64,7 @@ export default function ProblemDetailPage() {
     try {
       const token = await getToken()
       const { data } = await api.post(
-        '/api/ai/hint',
+        '/ai/hint',
         { problemId: problem._id, code, language },
         { headers: { Authorization: `Bearer ${token}` } }
       )

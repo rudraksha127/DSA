@@ -36,7 +36,7 @@ const useProblemStore = create((set, get) => ({
       if (filters.search)     params.set('search', filters.search)
       params.set('page', filters.page)
       const { data } = await api.get(`/problems?${params}`)
-      set({ problems: data.problems, totalPages: data.totalPages, loading: false })
+      set({ problems: data.problems, totalPages: data.pages, loading: false })
     } catch (err) {
       set({ error: err?.message ?? 'Failed to fetch problems', loading: false })
     }

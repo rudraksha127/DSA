@@ -28,11 +28,13 @@ const submissionSchema = new mongoose.Schema({
 
   // ─── Test Case Results ───────────────────────────────
   testResults: [{
-    passed: Boolean,
-    input:  String,
+    passed:   Boolean,
+    input:    String,
     expected: String,
-    got:    String,
-    runtime: Number,
+    got:      String,
+    runtime:  Number,
+    memory:   Number,
+    status:   String,
   }],
 
   isFirstAccepted: { type: Boolean, default: false },
